@@ -33,28 +33,51 @@ struct Size {
     bool operator==(Size rhs) const;
 };
 
-// Описывает ошибки, которые могут возникнуть при вычислении формулы.
+struct PositionHasher {
+    size_t operator()(Position pos) const {
+        return static_cast<size_t>(pos.row * 113 + pos.col * 470);
+    }
+};
+
 class FormulaError {
 public:
     enum class Category {
         Ref,    // ссылка на ячейку с некорректной позицией
         Value,  // ячейка не может быть трактована как число
-        Div0,  // в результате вычисления возникло деление на ноль
+        Arithmetic,  // некорректная арифметическая операция
     };
 
-    FormulaError(Category category);
+    FormulaError(Category category) : 
+        category_(category){}
 
-    Category GetCategory() const;
+    Category GetCategory() const {
+        return category_;
+    }
 
-    bool operator==(FormulaError rhs) const;
+    bool operator==(FormulaError rhs) const {
+        return category_ == rhs.category_;
+    }
 
-    std::string_view ToString() const;
+    std::string_view ToString() const {
+        using namespace std::literals;
+        if (category_ == Category::Ref) {
+            return "#REF!"sv;
+        }
+        else if (category_ == Category::Value) {
+            return " #VALUE!"sv;
+        }
+        else {
+            return "#ARITHM!"sv;
+        }
+    }
 
 private:
     Category category_;
 };
 
-std::ostream& operator<<(std::ostream& output, FormulaError fe);
+inline std::ostream& operator<<(std::ostream& output, FormulaError fe) {
+    return output << fe.ToString();
+}
 
 // Исключение, выбрасываемое при попытке передать в метод некорректную позицию
 class InvalidPositionException : public std::out_of_range {
